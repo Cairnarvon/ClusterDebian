@@ -4,7 +4,7 @@ ClusterDebian is a Linux distro inspired by [ClusterKnoppix](http://clusterknopp
 
 The idea is that you have a network topology more or less like this:
 
-![network](blob/master/doc/network.png "ClusterDebian network")
+![network](https://github.com/Cairnarvon/ClusterDebian/raw/master/doc/network.png "ClusterDebian network")
 
 The first node boots off a live CD or USB device and automatically sets up a PXE server, and all of the other nodes boot off that. The entire filesystem is shared over NFS, for ease of interaction.
 
@@ -30,8 +30,8 @@ A step-by-step guide:
 
 If you end up with a screen like the one below, things should be working.
 
-![bootloader](blob/master/doc/isolinux.png "ISOLINUX bootloader")
-![login](blob/master/doc/node1.png "ClusterDebian node1 login")
+![bootloader](https://github.com/Cairnarvon/ClusterDebian/raw/master/doc/isolinux.png "ISOLINUX bootloader")
+![login](https://github.com/Cairnarvon/ClusterDebian/raw/master/doc/node1.png "ClusterDebian node1 login")
 
 `node1` should have started its DHCP server automatically, so try booting the other nodes over PXE. The man page will guide you from there.
 
