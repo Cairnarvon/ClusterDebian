@@ -1,0 +1,15 @@
+.TH cluster.shutdown 1 "May 2011"
+
+.SH "NAME"
+cluster.shutdown, cluster.halt \- shut down your ClusterDebian cluster
+
+.SH "SYNOPSIS"
+\fBcluster.shutdown\fR [\fIOPTION\fR]... \fItime\fR
+
+.SH "DESCRIPTION"
+\fBcluster.shutdown\fR automatically shuts down every node in your ClusterDebian cluster, waiting for the secondary nodes to shut down before shutting down the primary. The options are identical to those of \fBshutdown\fR(8).
+
+.SH "SEE ALSO"
+\fBshutdown\fR(8)
+.br
+\fBcluster\fR(7)

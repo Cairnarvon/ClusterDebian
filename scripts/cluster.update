@@ -1,0 +1,38 @@
+#!/bin/bash
+
+update-mpi()
+{
+    echo -n "Updating MPI hostfile... "
+    for IP in $(awk '{print $1}' /etc/cluster/mpi.hosts); do
+        ping -q -c 1 -w 1 $IP >/dev/null || sed -i '/$IP/d' $f
+    done
+    echo "done."
+}
+
+update-pvm()
+{
+    echo -n "Updating PVM hostfile... "
+    for IP in $(grep -v '^#' /etc/cluster/pvm.hosts); do
+        ping -q -c 1 -w 1 $IP >/dev/null || sed -i '/$IP/d' $f
+    done
+    echo "done."
+}
+
+if [ $# -gt 0 ]; then
+    for F; do
+        case "$F" in
+            mpi)
+                update-mpi
+                ;;
+            pvm)
+                update-pvm
+                ;;
+            *)
+                echo "$0: unrecognised option: $F" >&2
+                ;;
+        esac
+    done
+else
+    update-mpi
+    update-pvm
+fi

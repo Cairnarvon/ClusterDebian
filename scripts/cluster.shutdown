@@ -1,0 +1,23 @@
+#!/bin/bash
+
+if [ "$(whoami)" != "root" ]; then
+    echo "$0: you must be root to do that!" >&2
+    exit 1
+fi
+
+if [ -z "$@" ]; then
+    echo "$0: need arguments."
+    exit 2
+fi
+
+for NODE in $(cat /etc/cluster/pvm.hosts); do
+    [ "$NODE" != node1 ] && ssh $NODE "/sbin/shutdown $@"
+done
+
+echo "Waiting for secondary nodes to shut down..."
+# Ideally this would be done using something like showmount, but that doesn't
+# work (nodes appear in showmount for ages after they've shut down).
+# So instead we just wait a bit and hope the other nodes have at least loaded
+# /sbin/shutdown. Should work adequately.
+sleep 3
+/sbin/shutdown $@

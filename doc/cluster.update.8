@@ -1,0 +1,15 @@
+.TH cluster.update 1 "May 2011"
+
+.SH "NAME"
+cluster.update \- updates your ClusterDebian hostfiles.
+
+.SH "SYNOPSIS"
+\fBcluster.update\fR [\fBmpi\fR|\fBpvm\fR]
+
+.SH "DESCRIPTION"
+\fBcluster.update\fR examines your hostfiles, pinging each node in it and removing those entries that have become unreachable. This may be necessary when one or more of your nodes have shut down incorrectly, without having had a chance to remove themselves neatly.
+.PP
+By default, \fBcluster.update\fR cleans out both \fImpi.hosts\fR and \fIpvm.hosts\fR. If you only want to do one of them, pass the corresponding argument.
+
+.SH "SEE ALSO"
+\fBcluster\fR(7)

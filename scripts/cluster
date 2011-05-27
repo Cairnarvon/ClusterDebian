@@ -1,0 +1,88 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          cluster
+# Required-Start:    $remote_fs $network $syslog nfs-common
+# Required-Stop:    
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Sets up a ClusterDebian node.
+# Description:
+### END INIT INFO
+
+IP=$(ifconfig eth0 | awk '/inet addr/{print $2}' | awk -F ':' '{print $2}')
+[ -z "$IP" ] && IP=$(ifconfig eth1 | awk '/inet addr/{print $2}' | awk -F ':' '{print $2}')
+[ -z "$IP" ] && exit 1
+NODE_NUM=$(echo $IP | awk -F '.' '{print $4}')
+
+HOSTNAME="node$NODE_NUM"
+hostname $HOSTNAME
+
+add_node()
+{
+    [ ! -d /etc/cluster ] && mkdir /etc/cluster
+
+    SLAVE_CPUS=$(lscpu | awk '/CPU\(s\)/{print $2}')
+    echo "$IP slots=$SLAVE_CPUS" >>/etc/cluster/mpi.hosts
+    chmod a+rw /etc/cluster/mpi.hosts
+
+    echo "$HOSTNAME" >>/etc/cluster/pvm.hosts
+    chmod a+rw /etc/cluster/pvm.hosts
+
+    [ -z "$(grep 127.0.0.1 /etc/hosts)" ] && echo "127.0.0.1 localhost" >> /etc/hosts
+    echo "$IP $HOSTNAME" >> /etc/hosts
+
+    if [ "$HOSTNAME" = node1 ]; then
+        /etc/init.d/nfs-kernel-server start
+        /etc/init.d/isc-dhcp-server start
+
+        cp /etc/fstab{,.old}
+        echo "\
+proc            /proc           proc    defaults 0 0
+/dev/nfs        /               nfs     defaults 0 0
+none            /tmp            tmpfs   defaults 0 0
+none            /var/run        tmpfs   defaults 0 0
+none            /var/lock       tmpfs   defaults 0 0
+none            /var/tmp        tmpfs   defaults 0 0" > /etc/fstab
+
+        cp /etc/network/interfaces{,.old}
+        echo "\
+auto lo
+iface lo inet loopback
+iface eth0 inet dhcp" > /etc/network/interfaces
+    fi
+}
+
+remove_node()
+{
+    sed -i "/$IP/d" /etc/hosts
+    sed -i "/$IP/d" /etc/cluster/mpi.hosts
+    sed -i "/$HOSTNAME/d" /etc/cluster/pvm.hosts
+
+    if [ "$HOSTNAME" == node1 ]; then
+        mv /etc/fstab{.old,}
+        mv /etc/network/interfaces{.old,}
+    fi
+}
+
+case "$1" in
+  start)
+    echo "Starting cluster setup script."
+    add_node
+    ;;
+  stop)
+    remove_node
+    echo "Node removed."
+    ;;
+  restart)
+    echo "Restarting cluster setup script."
+    remove_node
+    add_node
+    echo "Restarted."
+    ;;
+  *)
+    echo "Usage: $0 {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0

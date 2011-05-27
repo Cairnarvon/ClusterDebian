@@ -1,0 +1,7 @@
+# defaults file for sinfo daemon
+
+# change the below to 0/1 if you don't_want/want to run sinfod
+RUN_SINFO=1
+
+# comand line options for sinfod
+OPTS="${OPTS} --quiet --bcastaddress=NETBASE.255"

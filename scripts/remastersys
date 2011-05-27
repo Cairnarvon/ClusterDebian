@@ -1,0 +1,214 @@
+#!/bin/bash
+
+# Based on Tony Brijeski's remastersys script.
+# If you came here looking for a way to create live CDs, start there:
+# http://www.geekconnection.org/remastersys/
+
+if [ "`whoami`" != "root" ]; then
+    echo "Be root."
+    exit 1
+fi
+
+[ -f "config.sh" ] && . config.sh
+
+[ -z "$WORKDIR" ]   && WORKDIR="$(pwd)/remastersys"
+[ -z "$EXCLUDES" ]  && EXCLUDES=""
+[ -z "$LIVEUSER" ]  && LIVEUSER="$(awk -F ':' '/:1000:/{print $1}' /etc/passwd)"
+[ -z "$LIVENAME" ]  && LIVENAME="$(awk -F ':' '/:1000:/{print $5}' /etc/passwd | sed 's/,//g')"
+[ -z "$CUSTOMISO" ] && CUSTOMISO="clusterdebian.iso"
+[ -z "$KERNEL" ]    && KERNEL=$(uname -r)
+
+if [ "$1" ]; then
+    case $1 in
+        backup|dist)
+            echo "(Options do nothing.)"
+            ;;
+        iso|cdfs)
+            echo "Just $1, then."
+            ;;
+        clean)
+            echo "Removing the build directory now..."
+            rm -rf $WORKDIR
+            echo "Done...Exiting"
+            exit 0
+            ;;
+        *)
+            echo -e "Invalid options. Usage: \033[1m$0 [iso|cdfs|clean]\033[0m."
+            exit 1
+            ;;
+    esac
+fi
+
+
+cdfs()
+{
+    # Step 3 - Create the CD tree in $WORKDIR/ISOTMP
+    if [ -d "$WORKDIR" ]; then
+        rm -rf $WORKDIR
+    fi
+    
+    mkdir -p $WORKDIR/ISOTMP/live
+    mkdir -p $WORKDIR/ISOTMP/isolinux
+    mkdir -p $WORKDIR/ISOTMP/install
+    mkdir -p $WORKDIR/ISOTMP/preseed
+    mkdir -p $WORKDIR/dummysys/dev
+    mkdir -p $WORKDIR/dummysys/etc/live
+    mkdir -p $WORKDIR/dummysys/proc
+    mkdir -p $WORKDIR/dummysys/tmp
+    mkdir -p $WORKDIR/dummysys/sys
+    mkdir -p $WORKDIR/dummysys/mnt
+    mkdir -p $WORKDIR/dummysys/media/cdrom
+    mkdir -p $WORKDIR/dummysys/var
+    chmod ug+rwx,o+rwt $WORKDIR/dummysys/tmp
+
+    echo "Copying /var and /etc to temp area and excluding extra files"
+    for addvar in $EXCLUDES ; do
+        VAREXCLUDES="$VAREXCLUDES --exclude='$addvar' "
+    done
+    rsync --exclude='*.log.*' --exclude='*.pid' --exclude='*.bak' --exclude='*.[0-9].gz' --exclude='*.deb' $VAREXCLUDES -a /var/. $WORKDIR/dummysys/var/.
+    rsync $VAREXCLUDES-a /etc/. $WORKDIR/dummysys/etc/.
+
+    rm -rf $WORKDIR/dummysys/etc/X11/xorg.conf*
+    rm -rf $WORKDIR/dummysys/etc/timezone
+    rm -rf $WORKDIR/dummysys/etc/mtab
+    rm -rf $WORKDIR/dummysys/etc/fstab
+    rm -rf $WORKDIR/dummysys/etc/udev/rules.d/70-persistent*
+    ls $WORKDIR/dummysys/var/lib/apt/lists | grep -v ".gpg" | grep -v "lock" | grep -v "partial" | xargs -i rm $WORKDIR/dummysys/var/lib/apt/lists/{} ; 
+
+    # copy over some of the necessary stuff for the livecd
+    cp conf/preseed.seed $WORKDIR/ISOTMP/preseed/
+    cp /usr/lib/syslinux/{isolinux.bin,vesamenu.c32} $WORKDIR/ISOTMP/isolinux
+    cp conf/isolinux.cfg $WORKDIR/ISOTMP/isolinux/
+    cp misc/splash.png $WORKDIR/ISOTMP/isolinux/
+
+    # Step 4 - Prepare live.conf
+    echo "Setting up live options."
+    [ ! -d /etc/live ] && mkdir -p /etc/live
+    echo "export LIVE_USERNAME=\"$LIVEUSER\""      >/etc/live/config.conf
+    echo "export LIVE_USER_FULLNAME=\"$LIVENAME\"" >>/etc/live/config.conf
+    echo "export LIVE_HOSTNAME=\"$HOSTNAME\""  >>/etc/live/config.conf
+    echo "export LIVE_NOCONFIGS=\"002-user-setup,003-sudo,004-locales,005-tzdata,006-gdm,007-gdm3,008-kdm,009-lxdm,010-nodm,011-slim,015-keyboard-configuration,102-gnome-panel-data,103-gnome-power-manager,104-gnome-screensaver,107-kde-services,116-login\"" >> /etc/live/config.conf
+    cp /etc/live/config.conf $WORKDIR/dummysys/etc/live/
+
+    # Generate a new initramfs including the live scripts
+    update-initramfs -t -c -k $KERNEL
+    echo "Copying your kernel and initrd for the livecd"
+    cp /boot/vmlinuz-$KERNEL $WORKDIR/ISOTMP/live/vmlinuz
+    cp /boot/initrd.img-$KERNEL $WORKDIR/ISOTMP/live/initrd.img
+
+    # Step 5 - Make filesystem.squashfs
+    if [ -f $WORKDIR/ISOTMP/live/filesystem.squashfs ]; then
+        rm -f $WORKDIR/ISOTMP/live/filesystem.squashfs
+    fi
+
+    echo "Creating filesystem.squashfs. This will take a while."
+
+    SQUASHFSOPTSHIGH="-no-recovery -always-use-fragments -b 1M"
+
+    echo "Adding stage 1 files/folders that the livecd requires."
+    # add the blank folders and trimmed down /var to the cd filesystem
+    mksquashfs $WORKDIR/dummysys/ $WORKDIR/ISOTMP/live/filesystem.squashfs -no-duplicates $SQUASHFSOPTSHIGH 2>>$WORKDIR/remastersys.log
+
+    echo "Adding stage 2 files/folders that the livecd requires."
+    # add the rest of the system depending on the mode selected
+    mksquashfs / $WORKDIR/ISOTMP/live/filesystem.squashfs -no-duplicates $SQUASHFSOPTSHIGH -e \
+        .thumbnails \
+        .cache \
+        .bash_history \
+        Cache \
+        boot/grub \
+        dev \
+        etc \
+        media \
+        mnt \
+        proc \
+        sys \
+        tmp \
+        var \
+        $WORKDIR $EXCLUDES 2>>$WORKDIR/remastersys.log
+
+    #add some stuff the log in case of problems so I can troubleshoot it easier
+    echo "------------------------------------------------------" >>$WORKDIR/remastersys.log
+    echo "Mount information"                                      >>$WORKDIR/remastersys.log
+    mount                                                         >>$WORKDIR/remastersys.log
+    echo "------------------------------------------------------" >>$WORKDIR/remastersys.log
+    echo "df information"                                         >>$WORKDIR/remastersys.log
+    df -h                                                         >>$WORKDIR/remastersys.log
+    echo "------------------------------------------------------" >>$WORKDIR/remastersys.log
+    echo "/etc/live/config.conf info"                             >>$WORKDIR/remastersys.log
+    cat /etc/live/config.conf                                     >>$WORKDIR/remastersys.log
+    echo "------------------------------------------------------" >>$WORKDIR/remastersys.log
+    echo "/etc/passwd info"                                       >>$WORKDIR/remastersys.log
+    cat $WORKDIR/dummysys/etc/passwd                              >>$WORKDIR/remastersys.log
+    echo "------------------------------------------------------" >>$WORKDIR/remastersys.log
+    echo "/etc/group info"                                        >>$WORKDIR/remastersys.log
+    cat $WORKDIR/dummysys/etc/group                               >>$WORKDIR/remastersys.log
+    echo "------------------------------------------------------" >>$WORKDIR/remastersys.log
+    
+    #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file" 
+    SQUASHFSSIZE=`ls -s $WORKDIR/ISOTMP/live/filesystem.squashfs | awk -F " " '{print $1}'`
+    if [ "$SQUASHFSSIZE" -gt "3999999" ]; then
+        echo " The compressed filesystem is larger than the iso9660 specification allows for a single file. You must try to reduce the amount of data you are backing up and try again." | tee -a $WORKDIR/remastersys.log
+        exit 1
+    fi
+}
+
+iso ()
+{
+    CREATEISO="`which mkisofs`"
+    [ -z "$CREATEISO" ] && CREATEISO="`which genisoimage`"
+
+    # check to see if the cd filesystem exists
+    if [ ! -f "$WORKDIR/ISOTMP/live/filesystem.squashfs" ]; then
+        echo "The CD filesystem is missing! Something went wrong." | tee -a $WORKDIR/remastersys.log
+        exit 1
+    fi
+
+    #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file" 
+    SQUASHFSSIZE=`ls -s $WORKDIR/ISOTMP/live/filesystem.squashfs | awk -F " " '{print $1}'`
+    if [ "$SQUASHFSSIZE" -gt "3999999" ]; then
+        echo " The compressed filesystem is larger than the iso9660 specification allows for a single file. You must try to reduce the amount of data you are backing up and try again." | tee -a $WORKDIR/remastersys.log
+        exit 1
+    fi
+
+    # Step 6 - Make the ISO file
+    echo "Creating $CUSTOMISO."
+    $CREATEISO    \
+        -quiet \
+        -r    \
+        -V "$LIVECDLABEL"    \
+        -cache-inodes    \
+        -J    \
+        -l    \
+        -b isolinux/isolinux.bin    \
+        -c isolinux/boot.cat    \
+        -no-emul-boot    \
+        -boot-load-size 4    \
+        -boot-info-table    \
+        -o $CUSTOMISO "$WORKDIR/ISOTMP" 2>>$WORKDIR/remastersys.log 1>>$WORKDIR/remastersys.log
+
+    # create hybrid iso so it can be dd installed to a usb flash drive
+    echo "Making the iso into a hybrid image so it can be imaged to a usb key or burned to optical media"
+
+    isohybrid $CUSTOMISO
+
+    echo "$CUSTOMISO is ready to be used."
+    echo
+    echo "Check the size and if it is larger than 700MB you will need to burn it to a dvd"
+    echo
+    ls -hs $CUSTOMISO
+    echo
+}
+
+# check to see if either iso or cdfs options have been invoked and proceed accordingly
+
+if [ "$1" = "iso" ]; then
+    iso $@
+elif [ "$1" = "cdfs" ]; then
+    cdfs $@
+else
+    cdfs $@
+    iso $@
+fi
+
+exit 0

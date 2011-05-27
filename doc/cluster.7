@@ -1,0 +1,76 @@
+.TH ClusterDebian 7 "March 2011"
+
+.SH "INTRODUCTION"
+Welcome to \fBClusterDebian\fR, a remastering of Debian Squeeze to make HPC easier.
+
+.SH "HOW IT WORKS"
+ClusterDebian's purpose is to make it easy to set up an Open MPI or PVM HPC cluster without any configuration or changes to the machines it runs on. The primary node is intended to boot from a CD-ROM or USB device, and every other node will boot over the network using PXE. ClusterDebian will automatically add each new node to a central Open MPI hostfile you can use with \fBmpirun\fR(1), to a PVM hostfile you can use with \fBpvm\fR(1), and to \fI/etc/hosts\fR.
+.br
+Every node will share its entire root filesystem over NFS, so any changes made on one node will immediately be reflected on all of them.
+
+.SH "EFFECTIVE USE"
+Assuming you got your nodes to boot (if you didn't, see TROUBLESHOOTING below), you can monitor them using \fBsinfo\fR(1).
+.PP
+Start Open MPI-capable applications using \fBmpirun\fR(1), using \fI/etc/cluster/mpi.hosts\fR as a hostfile (a symlink to it exists in your home directory; there should be no need to edit this file, as ClusterDebian will automatically maintain it).
+.br
+To use PVM, first start it by using \fBpvm\fR(1) with \fI/etc/cluster/pvm.hosts\fR (a symlink to this will also exist in your home directory; this file, too, is automatically maintained).
+.br
+If symlinks to either of these files are missing, that means your ClusterDebian was built without support for that method of clustering.
+.PP
+If you prefer to have a GUI, start X using \fBstartx\fR(1). Remember, though, that you can switch TTYs with Ctrl + Alt + F1-F6, if you just want several terminals without incurring the overhead of X.
+.PP
+As all nodes share their entire filesystem over NFS, editing a file on any of them will change it on all of them. Should you want to connect to them, \fBssh\fR(1) to their hostname; ClusterDebian automatically added them to \fI/etc/hosts\fR, so there is no need to mess with IP addresses. (You also won't need passwords; authentication happens automatically using public keys.)
+.PP
+Since ClusterDebian boots off a read-only medium, all changes to it will be lost upon shutdown. To save your work, mount a local hard drive or other medium (it will not be shared over NFS, and only visible to the node on which it is mounted), or save it over the network in some way.
+
+.SH "REMOVING NODES AND SHUTTING DOWN THE CLUSTER"
+To shut down your entire cluster, use \fBcluster.shutdown\fR(8). It takes the same arguments as \fBshutdown\fR(8), so refer to that man page.
+.PP
+To remove a single node, ssh to it and just shut it down normally. It will remove its own entry from \fI/etc/hosts\fR, \fI/etc/cluster/mpi.hosts\fR, and \fI/etc/cluster/pvm.hosts\fR. If your node did not shut down cleanly, its entries will remain in your hostfiles, probably rendering them impossible to use. If this happens, you can automatically remove unreachable entries by running \fBcluster.update\fR(8).
+
+.SH "TROUBLESHOOTING"
+If your nodes refuse to boot over PXE (and you're sure they should be able to), verify that your first node booted properly.
+.br
+First, ensure that its hostname is \fBnode1\fR, which means that the start-up script ran at least somewhat successfully. If it isn't, ensure that it has a network connection, and that its IP address is NETBASE.1, configuring it manually if necessary. Once it has a network connection, restart the cluster script by running \fB/etc/init.d/cluster restart\fR.
+.br
+Ensure \fBdhcpd\fR is running. The cluster script would have started this automatically. If it hasn't, you can try starting it manually (\fB/etc/init.d/isc-dhcp-server start\fR), though this is not likely to work.
+.PP
+If your secondary nodes boot normally, but you are having difficulties distributing your jobs over the cluster, verify that you're doing it right: use \fBmpirun\fR(1) with \fI/etc/cluster/mpi.hosts\fR as a hostfile for MPI, and first start PVM using \fBpvm\fR(1) with \fI/etc/cluster/pvm.hosts\fR for PVM.
+.br
+If the problem is that some nodes present in a hostfile are unreachable (because of an improper shutdown or a network failure, for example), run \fBcluster.update\fR(8) to remove them automatically.
+.PP
+As ClusterDebian boots off read-only media, remember that if things are messed up too much you can just reboot with no harm done.
+
+.SH "SECURITY CONSIDERATIONS"
+Be aware that your master node shares its entire root filesystem (including, among other things, its SSH keys) over NFS with read/write access to anyone who cares to mount it. If you want finer control, edit \fI/etc/exports\fR and run \fBexportfs -arv\fR. See the relevant man pages (\fBexports\fR(7) and \fBexportfs\fR(1)) for more information. Or, more sensibly, don't run ClusterDebian on untrusted networks.
+
+.SH CREDITS
+Koen Crolla <koen.crolla@student.khleuven.be> (maintainer)
+.br
+Bert Mertens <bert.mertens@student.khleuven.be>
+.br
+Jan Roes <jan.roes@student.khleuven.be>
+
+.SH ACKNOWLEDGEMENTS
+The Debian Project <http://www.debian.org>
+.br
+Open MPI <http://www.open-mpi.org>
+.br
+PVM <http://www.csm.ornl.gov/pvm/>
+.br
+PXELinux <http://syslinux.zytor.com/wiki/index.php/PXELINUX>
+.br
+Remastersys <http://www.geekconnection.org/remastersys/>
+
+.SH "SEE ALSO"
+\fBcluster.shutdown\fR(8)
+.br
+\fBcluster.update\fR(8)
+.PP
+\fBmpirun\fR(1)
+.br
+\fBmpicc\fR(1)
+.br
+\fBpvm\fR(1)
+.br
+\fBsinfo\fR(1)
