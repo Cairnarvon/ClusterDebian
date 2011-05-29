@@ -5,7 +5,7 @@ if [ "$(whoami)" != "root" ]; then
     exit 1
 fi
 
-if [ -z "$@" ]; then
+if [ $# -eq 0 ]; then
     echo "$0: need arguments."
     exit 2
 fi
