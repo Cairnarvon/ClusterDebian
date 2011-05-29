@@ -98,7 +98,7 @@ config()
     sed "s/DNS/${DNS// /, }/g
          s/BROADCAST/$NETBASE.255/g
          s/NETWORK/$NETBASE.0/g
-         s/RANGE/$NETBASE.2 $NETBASE.250/g" conf/dhcpd.conf >/etc/dhcp/dhcpd.conf
+         s/RANGE/$NETBASE.2 $NETBASE.251/g" conf/dhcpd.conf >/etc/dhcp/dhcpd.conf
 
     # Network interfaces for node1
     sed "s/NODE1/$NETBASE.1/" conf/interfaces        >/etc/network/interfaces
