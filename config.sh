@@ -32,7 +32,7 @@ KERNEL=2.6.32
 KERNEL_CONF=/boot/config-$(uname -r)
 
 # Location of the aufs git repository.
-# If you foresee building a lot of different version of ClusterDebian and don't
+# If you foresee building a lot of different versions of ClusterDebian and don't
 # want to have to wait an hour while it pulls the repository over the Internet
 # every time, consider hosting a local mirror somewhere and changing this.
 # Otherwise, probably best not to touch it.
