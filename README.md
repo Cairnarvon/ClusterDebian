@@ -10,6 +10,8 @@ The first node boots off a live CD or USB device and automatically sets up a PXE
 
 Unlike ClusterKnoppix, ClusterDebian is not an SSI cluster OS. The openMosix project is dead, MOSIX is non-free, and all the alternatives are, as far as I've been able to work out, crap. Instead, ClusterDebian uses **Open MPI** and/or **PVM** for its clustery goings-on.
 
+ClusterDebian does not alter your HD in any way (though you can obviously mount it manually yourself if you want to), and in fact runs fine on machines that don't have any.
+
 ## Getting it
 
 A ClusterDebian image is typically at least a few hundred megabytes in size, and I don't have the resources to share that kind of data over the Internets. Instead, I'm providing these scripts to help you create your own from a fresh Debian install, which has the added benefit that you can customise it to your liking in ways you couldn't with a plain ISO.
@@ -24,7 +26,7 @@ A step-by-step guide:
 
 4. Go to that directory and edit `config.sh`. If you want to add your own files or packages to the system, now is the time to do it. (If you want to build something that depends on the Open MPI or PVM libraries, you can run `./build.sh packages` to install the various packages first, if you like.)
 
-5. Run `./build.sh`. If everything goes right, you'll end up with an ISO after a while (and I do mean a while: along the way we'll be pulling the `aufs` repository and building a new kernel; say three or four hours).
+5. Run `./build.sh`. If everything goes right, you'll end up with an ISO after a while (and I do mean a while: along the way we'll be pulling the `aufs` repository and building a new kernel; say three or four hours). You can expect to be prompted twice during building: once during package installation, when you will be asked if you want to enable the `sinfo` CGI script (if you chose to install that, at least), and again when we're compiling the kernel, if there are options you haven't specified (there will probably be a few), something like an hour in on my machine. Other than that you can basically leave it running unattended.
 
 6. Put this on a USB drive (`dd if=clusterdebian.iso of=/dev/sdb`, *assuming `/dev/sdb` is your USB device*) or a CD-ROM and try booting from it. (If you built inside a QEMU VM and are having difficulty getting the ISO to somewhere useful, remember that the host machine is accessible at IP 10.0.2.2. Just `scp` it.)
 
