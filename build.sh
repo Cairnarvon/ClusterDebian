@@ -213,11 +213,13 @@ kernel()
     echo "Creating a usable kernel."
     echo "First, cloning the aufs repository."
     if [ ! -d "aufs2-2.6.git" ]; then
-        git clone $AUFS_GIT aufs2-2.6.git || exit 3
+        git clone --branch aufs2.1-$MINOR $AUFS_GIT aufs2-2.6.git || exit 3
+        cd aufs2-2.6.git
+    else
+        cd aufs2-2.6.git
+        echo "Checking out."
+        git checkout aufs2.1-$MINOR || exit 3
     fi
-    cd aufs2-2.6.git
-    echo "Checking out."
-    git checkout aufs2.1-$MINOR || exit 3
 
     echo "Configuring kernel."
     sed '/CONFIG_NFS_FS/d

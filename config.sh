@@ -36,7 +36,7 @@ KERNEL_CONF=/boot/config-$(uname -r)
 # want to have to wait an hour while it pulls the repository over the Internet
 # every time, consider hosting a local mirror somewhere and changing this.
 # Otherwise, probably best not to touch it.
-AUFS_GIT="http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-2.6.git"
+AUFS_GIT="git://git.c3sl.ufpr.br/aufs/aufs2-2.6.git"
 
 # Network configuration.
 NETWORK=192.168.1.0     # Subnet mask is /24. No exceptions.
