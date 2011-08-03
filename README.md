@@ -63,7 +63,7 @@ You have to use Debian (some Debian derivatives might work, but don't count on i
 
 ### I just spent hours building an image and I just remembered something else I want to include. Do I really have to do it all over again?
 
-Probably not. If your change did not affect `config.sh`, you can get away with just running `./build.sh iso` to rebuild just the ISO. Even if it did affect `config.sh` (and the change isn't to the kernel configuration), you can just run `./build.sh allbutkernel`. Note that running `./install allbutkernel` without a working kernel will give you an ISO that won't work.
+Probably not. If your change did not affect `config.sh`, you can get away with just running `./build.sh iso` to rebuild just the ISO. Even if it did affect `config.sh` (and the change isn't to the kernel configuration), you can just run `./build.sh allbutkernel`. Note that running `./build.sh allbutkernel` without a working kernel will give you an ISO that won't work.
 
 (If you've shut down your VM since the first build, run `/etc/init.d/cluster stop` before doing any of this. You'll probably need to `dhclient` as well.)
 
