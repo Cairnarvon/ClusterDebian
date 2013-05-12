@@ -136,7 +136,10 @@ bling()
     echo "Updating miscellaneous files."
 
     # issue and motd
-    cp misc/issue /etc/issue
+    BASED_ON=$(printf "%63s" "Based on $(lsb_release -sd)")
+    sed "s#BASED_ON#$BASED_ON#" misc/issue >/etc/issue
+
+    # motd
     rm -f /etc/motd
     cp misc/motd /etc/motd
 }
