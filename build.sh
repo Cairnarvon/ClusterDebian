@@ -58,8 +58,8 @@ packages()
     esac
 
     SSH="openssh-client openssh-server"
-    LIVE="rsync memtest86+ genisoimage grub-pc squashfs-tools live-initramfs live-boot live-config live-config-sysvinit live-boot-initramfs-tools syslinux hwdata"
-    PXE="dhcp3-server syslinux atftpd nfs-kernel-server"
+    LIVE="rsync memtest86+ genisoimage grub-pc squashfs-tools live-boot live-config live-config-sysvinit live-boot-initramfs-tools syslinux hwdata"
+    PXE="isc-dhcp-server syslinux atftpd nfs-kernel-server"
     MISC="build-essential gcc git make wget"
 
     ALL="$CLUSTERING $MONITORING $XORG $SSH $LIVE $PXE $MISC $EXTRAPACKAGES"
@@ -171,7 +171,7 @@ userdot()
                 ;;
         esac
     fi
-    
+
     [ -n "$MPI" ] && ln -s /etc/cluster/mpi.hosts $1/mpi.hosts
     [ -n "$PVM" ] && ln -s /etc/cluster/pvm.hosts $1/pvm.hosts
 }
@@ -208,20 +208,34 @@ scripts()
 
 kernel()
 {
-    [ -z "$KERNEL" ]      && KERNEL=2.6.32
+    [ -z "$KERNEL" ]      && KERNEL=3.2.0
     [ -z "$KERNEL_CONF" ] && KERNEL_CONF=/boot/config-$(uname -r)
     [ -z "$AUFS_GIT" ]    && AUFS_GIT="http://git.c3sl.ufpr.br/pub/scm/aufs/aufs2-2.6.git"
-    MINOR=${KERNEL/2.6./}
+
+    if [ "${KERNEL:0:1}" -eq 2 ]; then
+        BRANCH="aufs2.1-${KERNEL/2.*./}"
+    else
+        MINOR=${KERNEL#*.}
+        MINOR=${MINOR%.*}
+        case $MINOR in
+            [2,4,6-9])
+                BRANCH="aufs3.$MINOR"
+                ;;
+            *)
+                BRANCH="aufs3.x-rcN"
+                ;;
+            esac
+    fi
 
     echo "Creating a usable kernel."
     echo "First, cloning the aufs repository."
-    if [ ! -d "aufs2-2.6.git" ]; then
-        git clone --branch aufs2.1-$MINOR $AUFS_GIT aufs2-2.6.git || exit 3
-        cd aufs2-2.6.git
+    if [ ! -d "aufs-linux" ]; then
+        git clone --branch "$BRANCH" $AUFS_GIT aufs-linux || exit 3
+        cd aufs-linux
     else
-        cd aufs2-2.6.git
+        cd aufs-linux
         echo "Checking out."
-        git checkout aufs2.1-$MINOR || exit 3
+        git checkout "$BRANCH" || exit 3
     fi
 
     echo "Configuring kernel."
@@ -275,23 +289,28 @@ pxe()
     fi
     cp /usr/lib/syslinux/pxelinux.0 /srv/tftp/pxelinux.0
 
-    if [ ! -f "/boot/vmlinuz-$KERNEL" ]; then
+    KERNELPATH="/boot/vmlinuz-$KERNEL"
+
+    [ ! -f "$KERNELPATH" ] && KERNELPATH="$KERNELPATH+"
+
+    if [ ! -f "$KERNELPATH" ]; then
         echo -n "Couldn't find kernel! Enter path (or blank to build one): "
         read KERNELPATH
         while [ ! -f "$KERNELPATH" ]; do
             if [ -z "$KERNELPATH" ]; then
                 kernel
                 KERNELPATH="/boot/vmlinuz-$KERNEL"
+                [ ! -f "$KERNELPATH" ] && KERNELPATH="$KERNELPATH+"
             else
                 echo -n "Invalid kernel path! Re-enter: "
                 read KERNELPATH
             fi
         done
     fi
-    cp /boot/vmlinuz-$KERNEL /srv/tftp/vmlinuz.img.netboot
+    cp "$KERNELPATH" /srv/tftp/vmlinuz.img.netboot
 
     sed -i.old 's/BOOT=local/BOOT=nfs/' /etc/initramfs-tools/initramfs.conf
-    mkinitramfs -o /srv/tftp/initrd.img.netboot $KERNEL
+    mkinitramfs -o /srv/tftp/initrd.img.netboot ${KERNELPATH#*/vmlinuz-}
     mv /etc/initramfs-tools/initramfs.conf{.old,}
 }
 

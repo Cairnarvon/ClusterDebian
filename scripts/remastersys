@@ -46,7 +46,7 @@ cdfs()
     if [ -d "$WORKDIR" ]; then
         rm -rf $WORKDIR
     fi
-    
+
     mkdir -p $WORKDIR/ISOTMP/live
     mkdir -p $WORKDIR/ISOTMP/isolinux
     mkdir -p $WORKDIR/ISOTMP/install
@@ -91,10 +91,11 @@ cdfs()
     cp /etc/live/config.conf $WORKDIR/dummysys/etc/live/
 
     # Generate a new initramfs including the live scripts
+    [ ! -f "/boot/vmlinuz-$KERNEL" ] && KERNEL="$KERNEL+"
     update-initramfs -t -c -k $KERNEL
     echo "Copying your kernel and initrd for the livecd"
-    cp /boot/vmlinuz-$KERNEL $WORKDIR/ISOTMP/live/vmlinuz
-    cp /boot/initrd.img-$KERNEL $WORKDIR/ISOTMP/live/initrd.img
+    cp /boot/vmlinuz-$KERNEL $WORKDIR/ISOTMP/live/vmlinuz || exit
+    cp /boot/initrd.img-$KERNEL $WORKDIR/ISOTMP/live/initrd.img || exit
 
     # Step 5 - Make filesystem.squashfs
     if [ -f $WORKDIR/ISOTMP/live/filesystem.squashfs ]; then
@@ -144,7 +145,7 @@ cdfs()
     echo "/etc/group info"                                        >>$WORKDIR/remastersys.log
     cat $WORKDIR/dummysys/etc/group                               >>$WORKDIR/remastersys.log
     echo "------------------------------------------------------" >>$WORKDIR/remastersys.log
-    
+
     #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file" 
     SQUASHFSSIZE=`ls -s $WORKDIR/ISOTMP/live/filesystem.squashfs | awk -F " " '{print $1}'`
     if [ "$SQUASHFSSIZE" -gt "3999999" ]; then
