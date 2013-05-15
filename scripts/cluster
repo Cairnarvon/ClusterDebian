@@ -21,7 +21,7 @@ add_node()
 {
     [ ! -d /etc/cluster ] && mkdir /etc/cluster
 
-    SLAVE_CPUS=$(lscpu | awk '/CPU\(s\)/{print $2}')
+    SLAVE_CPUS=$(lscpu | awk '/^CPU\(s\):/{print $2}')
     echo "$IP slots=$SLAVE_CPUS" >>/etc/cluster/mpi.hosts
     chmod a+rw /etc/cluster/mpi.hosts
 
